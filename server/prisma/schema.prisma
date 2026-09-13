@@ -12,8 +12,10 @@ model Ticket {
   protocol        String         @unique
   employeeName    String
   employeeId      String         // Matrícula
-  workplace       String         // Posto de trabalho
-  benefitType     String         // VR, VT, AMBOS, OUTRO
+  workplace       String         // Nome do Posto de trabalho
+  workplaceCode   String?        // Código do Hub (ex: HUB-LSP-02)
+  workplaceRegion String?        // Região (ex: Capital, Campinas, etc.)
+  benefitType     String         // VR, VT, SAUDE, UNIFORME, MULTIPLOS, OUTRO
   priority        String         @default("MEDIA") // BAIXA, MEDIA, ALTA, CRITICA
   status          String         @default("NOVO") // NOVO, EM_ANALISE, AGUARDANDO_FORNECEDOR, EM_TRATATIVA, RESOLVIDO, CANCELADO
   description     String         // Relato original

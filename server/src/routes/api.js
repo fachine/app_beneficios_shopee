@@ -9,6 +9,7 @@ import {
 import { getDashboardMetrics } from '../controllers/dashboardController.js';
 import { startTelegramPolling, stopTelegramPolling, getBotStatus } from '../services/telegramService.js';
 import { parseEmployeeMessageWithAI } from '../services/aiService.js';
+import { getAllHubs, searchHubs, getRegions } from '../services/hubService.js';
 
 const router = express.Router();
 
@@ -18,6 +19,19 @@ router.get('/tickets/:id', getTicketById);
 router.post('/tickets', createTicket);
 router.patch('/tickets/:id/status', updateTicketStatus);
 router.post('/tickets/:id/treatments', addTreatment);
+
+// Hubs / Postos de Trabalho Shopee SP
+router.get('/hubs', (req, res) => {
+  const { search } = req.query;
+  if (search) {
+    return res.json(searchHubs(search));
+  }
+  res.json(getAllHubs());
+});
+
+router.get('/hubs/regions', (req, res) => {
+  res.json(getRegions());
+});
 
 // Dashboard & SLAs
 router.get('/dashboard/metrics', getDashboardMetrics);
@@ -44,7 +58,7 @@ router.get('/settings/status', (req, res) => {
     },
     openrouter: {
       configured: Boolean(process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY.trim() !== ''),
-      model: process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-001'
+      model: process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini'
     }
   });
 });

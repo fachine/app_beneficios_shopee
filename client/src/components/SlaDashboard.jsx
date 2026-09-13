@@ -20,15 +20,26 @@ import {
   Timer, 
   TrendingUp,
   MapPin,
-  Utensils,
-  Bus
+  Building2,
+  ShieldAlert
 } from 'lucide-react';
 
 const BENEFIT_COLORS = {
   VR: '#f97316',
   VT: '#0284c7',
-  AMBOS: '#8b5cf6',
+  SAUDE: '#10b981',
+  UNIFORME: '#f59e0b',
+  MULTIPLOS: '#8b5cf6',
   OUTRO: '#64748b'
+};
+
+const BENEFIT_NAMES = {
+  VR: '🍔 VR / Refeição',
+  VT: '🚌 VT / Transporte',
+  SAUDE: '🏥 Plano de Saúde',
+  UNIFORME: '👕 Uniforme / EPI',
+  MULTIPLOS: '⚡ Múltiplos Itens',
+  OUTRO: '📋 Outro Assunto'
 };
 
 export default function SlaDashboard({ metrics, onSelectTicket }) {
@@ -50,6 +61,7 @@ export default function SlaDashboard({ metrics, onSelectTicket }) {
     slaComplianceRate,
     avgResolutionTimeHours,
     workplaceChart = [],
+    regionChart = [],
     benefitChart = [],
     criticalTickets = []
   } = metrics;
@@ -60,12 +72,12 @@ export default function SlaDashboard({ metrics, onSelectTicket }) {
       {/* Título da Página */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Dashboard de Gestão & SLAs</h2>
-          <p className="text-xs text-slate-500">Monitoramento em tempo real de conformidade, tempo de resposta e volume de ocorrências.</p>
+          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Dashboard de Gestão & SLAs (HUBs Shopee SP)</h2>
+          <p className="text-xs text-slate-500">Monitoramento oficial de ocorrências por HUB, região operacional e categorias de benefícios.</p>
         </div>
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 bg-white px-3 py-1.5 rounded-xl border border-slate-200">
           <Activity className="w-4 h-4 text-emerald-500 animate-pulse" />
-          <span>SLA Alvo da Operação: 95%</span>
+          <span>SLA Alvo Shopee: 95%</span>
         </div>
       </div>
 
@@ -150,14 +162,14 @@ export default function SlaDashboard({ metrics, onSelectTicket }) {
       {/* Seção de Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Gráfico 1: Ocorrências por Posto de Trabalho (Top 8) */}
+        {/* Gráfico 1: Ocorrências por HUB Shopee (Top 8) */}
         <div className="lg:col-span-2 bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Postos de Trabalho com Mais Ocorrências</h3>
-              <p className="text-xs text-slate-500">Distribuição dos problemas relatados por filial / posto</p>
+              <h3 className="text-sm font-bold text-slate-900">Ocorrências por HUB Shopee SP (Top Unidades)</h3>
+              <p className="text-xs text-slate-500">Distribuição dos chamados pelos 72 postos mapeados</p>
             </div>
-            <MapPin className="w-4 h-4 text-slate-400" />
+            <Building2 className="w-4 h-4 text-indigo-500" />
           </div>
 
           <div className="h-64 w-full">
@@ -167,13 +179,13 @@ export default function SlaDashboard({ metrics, onSelectTicket }) {
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={workplaceChart} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+                <BarChart data={workplaceChart} margin={{ top: 10, right: 10, left: -20, bottom: 35 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis 
                     dataKey="name" 
-                    tick={{ fontSize: 11, fill: '#64748b' }} 
+                    tick={{ fontSize: 10, fill: '#64748b' }} 
                     interval={0}
-                    angle={-15}
+                    angle={-20}
                     textAnchor="end"
                   />
                   <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
@@ -187,11 +199,11 @@ export default function SlaDashboard({ metrics, onSelectTicket }) {
           </div>
         </div>
 
-        {/* Gráfico 2: Divisão por Benefício (VR vs VT) */}
+        {/* Gráfico 2: Divisão por Categorias de Benefício */}
         <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs space-y-4">
           <div>
-            <h3 className="text-sm font-bold text-slate-900">Distribuição por Benefício</h3>
-            <p className="text-xs text-slate-500">VR vs VT vs Ambos</p>
+            <h3 className="text-sm font-bold text-slate-900">Distribuição por Categoria</h3>
+            <p className="text-xs text-slate-500">VR, VT, Saúde, Uniforme e Outros</p>
           </div>
 
           <div className="h-52 w-full flex items-center justify-center">
@@ -206,9 +218,9 @@ export default function SlaDashboard({ metrics, onSelectTicket }) {
                     nameKey="name"
                     cx="50%"
                     cy="50%"
-                    innerRadius={50}
+                    innerRadius={45}
                     outerRadius={75}
-                    paddingAngle={4}
+                    paddingAngle={3}
                   >
                     {benefitChart.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={BENEFIT_COLORS[entry.name] || '#94a3b8'} />
@@ -223,12 +235,12 @@ export default function SlaDashboard({ metrics, onSelectTicket }) {
           </div>
 
           {/* Legenda customizada */}
-          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 max-h-24 overflow-y-auto">
             {benefitChart.map(item => (
-              <div key={item.name} className="flex items-center gap-2 text-xs">
-                <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: BENEFIT_COLORS[item.name] || '#94a3b8' }} />
-                <span className="font-semibold text-slate-700">{item.name}:</span>
-                <span className="text-slate-500 font-mono">{item.quantidade}</span>
+              <div key={item.name} className="flex items-center gap-1.5 text-xs">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: BENEFIT_COLORS[item.name] || '#94a3b8' }} />
+                <span className="text-slate-700 font-medium truncate">{BENEFIT_NAMES[item.name] || item.name}:</span>
+                <span className="text-slate-500 font-mono text-[11px]">{item.quantidade}</span>
               </div>
             ))}
           </div>
@@ -241,7 +253,7 @@ export default function SlaDashboard({ metrics, onSelectTicket }) {
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm font-bold text-slate-900">Atenção Prioritária (SLA Crítico ou Próximo do Vencimento)</h3>
-            <p className="text-xs text-slate-500">Ocorrências que exigem resposta rápida para não impactar os colaboradores</p>
+            <p className="text-xs text-slate-500">Ocorrências que exigem resposta rápida para não impactar os colaboradores dos HUBs</p>
           </div>
         </div>
 

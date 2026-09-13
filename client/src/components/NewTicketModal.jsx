@@ -1,19 +1,31 @@
-import React, { useState } from 'react';
-import { X, Sparkles, Send, CheckCircle, AlertCircle, Bot } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Sparkles, Send, CheckCircle, AlertCircle, Bot, Building2 } from 'lucide-react';
+import { getHubs } from '../services/api';
 
 export default function NewTicketModal({ onClose, onCreateTicket, onTestAI }) {
   const [mode, setMode] = useState('ia'); // 'ia' ou 'manual'
   const [rawText, setRawText] = useState('');
   
+  // Lista de Hubs para o select
+  const [hubsList, setHubsList] = useState([]);
+
   // Campos manuais
   const [employeeName, setEmployeeName] = useState('');
   const [employeeId, setEmployeeId] = useState('');
-  const [workplace, setWorkplace] = useState('');
+  const [selectedHub, setSelectedHub] = useState('');
   const [benefitType, setBenefitType] = useState('VR');
   const [priority, setPriority] = useState('MEDIA');
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [aiPreview, setAiPreview] = useState(null);
+
+  useEffect(() => {
+    getHubs().then(res => {
+      if (Array.isArray(res.data)) {
+        setHubsList(res.data);
+      }
+    }).catch(console.error);
+  }, []);
 
   // Testa a extração da IA com o texto digitado
   const handleTestAI = async () => {
@@ -25,7 +37,7 @@ export default function NewTicketModal({ onClose, onCreateTicket, onTestAI }) {
       if (res) {
         setEmployeeName(res.employeeName !== 'Não informado' ? res.employeeName : '');
         setEmployeeId(res.employeeId !== 'Não informada' ? res.employeeId : '');
-        setWorkplace(res.workplace !== 'Não informado' ? res.workplace : '');
+        setSelectedHub(res.workplace !== 'Não informado' ? res.workplace : '');
         setBenefitType(res.benefitType || 'VR');
         setPriority(res.priority || 'MEDIA');
       }
@@ -40,12 +52,16 @@ export default function NewTicketModal({ onClose, onCreateTicket, onTestAI }) {
     e.preventDefault();
     setIsProcessing(true);
 
+    const hubObj = hubsList.find(h => h.name === selectedHub || h.code === selectedHub);
+
     if (mode === 'ia') {
       await onCreateTicket({
         rawText,
         employeeName: employeeName || undefined,
         employeeId: employeeId || undefined,
-        workplace: workplace || undefined,
+        workplace: hubObj ? hubObj.name : selectedHub || undefined,
+        workplaceCode: hubObj ? hubObj.code : undefined,
+        workplaceRegion: hubObj ? hubObj.region : undefined,
         benefitType,
         priority
       });
@@ -53,10 +69,12 @@ export default function NewTicketModal({ onClose, onCreateTicket, onTestAI }) {
       await onCreateTicket({
         employeeName,
         employeeId,
-        workplace,
+        workplace: hubObj ? hubObj.name : selectedHub,
+        workplaceCode: hubObj ? hubObj.code : undefined,
+        workplaceRegion: hubObj ? hubObj.region : undefined,
         benefitType,
         priority,
-        rawText: `Abertura manual de ${benefitType} para ${employeeName} (${workplace})`
+        rawText: `Abertura manual de ${benefitType} para ${employeeName} (${selectedHub})`
       });
     }
 
@@ -75,8 +93,8 @@ export default function NewTicketModal({ onClose, onCreateTicket, onTestAI }) {
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-800">Novo Chamado de Benefício</h3>
-              <p className="text-xs text-slate-500">Simule uma mensagem do Telegram ou crie manualmente</p>
+              <h3 className="text-base font-bold text-slate-800">Novo Chamado de Benefício Shopee</h3>
+              <p className="text-xs text-slate-500">Integrado à lista oficial de postos (Postos_Shopee_HUB_SP)</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-lg">
@@ -121,7 +139,7 @@ export default function NewTicketModal({ onClose, onCreateTicket, onTestAI }) {
                 <textarea
                   rows={4}
                   required
-                  placeholder="Ex: Oi, me chamo Roberto Santos, matrícula 44810 do posto CD Cajamar. Meu VR não caiu esse mês e estou sem saldo para almoçar."
+                  placeholder="Ex: Oi, sou a Aline Rocha, matrícula 44810 do hub LM Hub_SP_Artur Alvim. Estou com problema no convênio de saúde e meu VR veio zerado."
                   value={rawText}
                   onChange={(e) => setRawText(e.target.value)}
                   className="w-full p-3 text-sm bg-white border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
@@ -144,8 +162,8 @@ export default function NewTicketModal({ onClose, onCreateTicket, onTestAI }) {
                 <div className="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-xl text-xs space-y-1.5">
                   <span className="font-bold text-indigo-900 block">Resultado da Extração IA:</span>
                   <p><span className="font-semibold text-slate-700">Colaborador:</span> {aiPreview.employeeName} (Matrícula: {aiPreview.employeeId})</p>
-                  <p><span className="font-semibold text-slate-700">Posto:</span> {aiPreview.workplace}</p>
-                  <p><span className="font-semibold text-slate-700">Benefício:</span> {aiPreview.benefitType} | Prioridade: {aiPreview.priority}</p>
+                  <p><span className="font-semibold text-slate-700">HUB Detectado:</span> {aiPreview.workplace} {aiPreview.workplaceCode && `(${aiPreview.workplaceCode})`}</p>
+                  <p><span className="font-semibold text-slate-700">Assunto:</span> {aiPreview.benefitType} | Prioridade: {aiPreview.priority}</p>
                   <p><span className="font-semibold text-slate-700">Resumo:</span> {aiPreview.summary}</p>
                 </div>
               )}
@@ -178,33 +196,42 @@ export default function NewTicketModal({ onClose, onCreateTicket, onTestAI }) {
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Posto de Trabalho / Filial</label>
-              <input
-                type="text"
-                placeholder="Ex: Loja Paulista ou CD Cajamar"
-                value={workplace}
-                onChange={(e) => setWorkplace(e.target.value)}
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Posto de Trabalho / HUB Shopee SP (72 HUBs cadastrados)
+              </label>
+              <select
+                value={selectedHub}
+                onChange={(e) => setSelectedHub(e.target.value)}
                 required={mode === 'manual'}
                 className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-              />
+              >
+                <option value="">Selecione o HUB da lista...</option>
+                {hubsList.map(h => (
+                  <option key={h.code} value={h.name}>
+                    {h.name} ({h.code} - {h.city || h.region})
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Tipo de Benefício</label>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Assunto / Benefício</label>
               <select
                 value={benefitType}
                 onChange={(e) => setBenefitType(e.target.value)}
                 className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="VR">Vale Refeição / Alimentação (VR)</option>
-                <option value="VT">Vale Transporte (VT)</option>
-                <option value="AMBOS">Ambos (VR e VT)</option>
-                <option value="OUTRO">Outro Benefício</option>
+                <option value="VR">🍔 Vale Refeição / Alimentação (VR)</option>
+                <option value="VT">🚌 Vale Transporte (VT)</option>
+                <option value="SAUDE">🏥 Plano de Saúde / Odonto</option>
+                <option value="UNIFORME">👕 Uniforme / EPI</option>
+                <option value="MULTIPLOS">⚡ Múltiplos Assuntos</option>
+                <option value="OUTRO">📋 Outro Assunto</option>
               </select>
             </div>
 
-            <div className="sm:col-span-2">
+            <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">Prioridade</label>
               <select
                 value={priority}

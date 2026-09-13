@@ -25,6 +25,10 @@ export const createTicket = (data) => api.post('/tickets', data);
 export const updateTicketStatus = (id, data) => api.patch(`/tickets/${id}/status`, data);
 export const addTreatment = (id, data) => api.post(`/tickets/${id}/treatments`, data);
 
+// Hubs Shopee SP
+export const getHubs = (search) => api.get('/hubs', { params: { search } });
+export const getRegions = () => api.get('/hubs/regions');
+
 // Dashboard & SLAs
 export const getDashboardMetrics = () => api.get('/dashboard/metrics');
 

@@ -7,7 +7,8 @@ import {
   User, 
   BadgeAlert,
   Calendar,
-  MessageSquare
+  MessageSquare,
+  Building2
 } from 'lucide-react';
 
 export default function TicketCard({ ticket, onClick, onDragStart }) {
@@ -50,9 +51,20 @@ export default function TicketCard({ ticket, onClick, onDragStart }) {
   const benefitBadge = {
     VR: 'bg-orange-50 text-orange-700 border-orange-200',
     VT: 'bg-sky-50 text-sky-700 border-sky-200',
-    AMBOS: 'bg-purple-50 text-purple-700 border-purple-200',
+    SAUDE: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    UNIFORME: 'bg-amber-50 text-amber-700 border-amber-200',
+    MULTIPLOS: 'bg-purple-50 text-purple-700 border-purple-200',
     OUTRO: 'bg-slate-100 text-slate-700 border-slate-200'
   }[ticket.benefitType] || 'bg-slate-100 text-slate-700 border-slate-200';
+
+  const benefitLabel = {
+    VR: '🍔 VR',
+    VT: '🚌 VT',
+    SAUDE: '🏥 Saúde',
+    UNIFORME: '👕 Uniforme',
+    MULTIPLOS: '⚡ Múltiplos',
+    OUTRO: '📋 Outro'
+  }[ticket.benefitType] || ticket.benefitType;
 
   // Cores por prioridade
   const priorityBadge = {
@@ -80,7 +92,7 @@ export default function TicketCard({ ticket, onClick, onDragStart }) {
         </span>
         <div className="flex items-center gap-1.5">
           <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${benefitBadge}`}>
-            {ticket.benefitType}
+            {benefitLabel}
           </span>
           <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border ${priorityBadge}`}>
             {ticket.priority}
@@ -94,16 +106,21 @@ export default function TicketCard({ ticket, onClick, onDragStart }) {
       </h4>
 
       {/* Dados do Colaborador e Posto */}
-      <div className="space-y-1 text-xs text-slate-600 mb-3 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+      <div className="space-y-1.5 text-xs text-slate-600 mb-3 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
         <div className="flex items-center gap-1.5 truncate">
           <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
           <span className="font-medium text-slate-800 truncate">{ticket.employeeName}</span>
           <span className="text-slate-400 text-[11px]">(Matr. {ticket.employeeId})</span>
         </div>
         <div className="flex items-center gap-1.5 truncate">
-          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-          <span className="truncate">{ticket.workplace}</span>
+          <Building2 className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+          <span className="truncate font-medium text-slate-700">{ticket.workplace}</span>
         </div>
+        {ticket.workplaceRegion && (
+          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 pl-5">
+            <span>Região: {ticket.workplaceRegion}</span>
+          </div>
+        )}
       </div>
 
       {/* Rodapé: SLA e Tratativas */}

@@ -23,12 +23,16 @@ export async function getDashboardMetrics(req, res) {
     const byBenefit = {
       VR: 0,
       VT: 0,
-      AMBOS: 0,
+      SAUDE: 0,
+      UNIFORME: 0,
+      MULTIPLOS: 0,
       OUTRO: 0
     };
 
     // Métricas por posto de trabalho
     const byWorkplace = {};
+    // Métricas por região operacional Shopee
+    const byRegion = {};
 
     // Métricas por status
     const byStatus = {
@@ -59,6 +63,10 @@ export async function getDashboardMetrics(req, res) {
       const wp = ticket.workplace || 'Não informado';
       byWorkplace[wp] = (byWorkplace[wp] || 0) + 1;
 
+      // Região Operacional Shopee
+      const reg = ticket.workplaceRegion || 'Não informada';
+      byRegion[reg] = (byRegion[reg] || 0) + 1;
+
       // SLA
       if (ticket.status === 'RESOLVIDO') {
         resolvedCount++;
@@ -70,7 +78,7 @@ export async function getDashboardMetrics(req, res) {
 
         if (ticket.resolvedAt && ticket.createdAt) {
           const diffHours = (new Date(ticket.resolvedAt) - new Date(ticket.createdAt)) / (1000 * 60 * 60);
-          totalResolutionTimeHours += diffHours;
+          totalResolutionTimeHours += Math.max(0, diffHours);
           resolvedWithTimeCount++;
         }
       } else if (ticket.status !== 'CANCELADO') {
@@ -100,6 +108,10 @@ export async function getDashboardMetrics(req, res) {
       .sort((a, b) => b.chamados - a.chamados)
       .slice(0, 8); // Top 8 postos com mais chamados
 
+    const regionChart = Object.keys(byRegion)
+      .map(name => ({ name, chamados: byRegion[name] }))
+      .sort((a, b) => b.chamados - a.chamados);
+
     const benefitChart = Object.keys(byBenefit).map(type => ({
       name: type,
       quantidade: byBenefit[type]
@@ -126,6 +138,7 @@ export async function getDashboardMetrics(req, res) {
       avgResolutionTimeHours,
       byStatus,
       workplaceChart,
+      regionChart,
       benefitChart,
       criticalTickets
     });

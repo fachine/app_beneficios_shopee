@@ -35,6 +35,7 @@ export default function KanbanBoard({ tickets, onUpdateTicketStatus, onSelectTic
       ticket.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       ticket.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
       ticket.workplace.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (ticket.workplaceRegion && ticket.workplaceRegion.toLowerCase().includes(searchTerm.toLowerCase())) ||
       ticket.summary?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesBenefit = filterBenefit === 'ALL' || ticket.benefitType === filterBenefit;
@@ -79,7 +80,7 @@ export default function KanbanBoard({ tickets, onUpdateTicketStatus, onSelectTic
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Buscar por colaborador, matrícula, posto ou protocolo..."
+              placeholder="Buscar por colaborador, matrícula, posto, região ou protocolo..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
@@ -94,10 +95,13 @@ export default function KanbanBoard({ tickets, onUpdateTicketStatus, onSelectTic
             onChange={(e) => setFilterBenefit(e.target.value)}
             className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
           >
-            <option value="ALL">Todos Benefícios</option>
-            <option value="VR">Apenas VR</option>
-            <option value="VT">Apenas VT</option>
-            <option value="AMBOS">Ambos (VR + VT)</option>
+            <option value="ALL">Todos os Assuntos</option>
+            <option value="VR">🍔 VR / Alimentação</option>
+            <option value="VT">🚌 VT (Transporte)</option>
+            <option value="SAUDE">🏥 Plano de Saúde</option>
+            <option value="UNIFORME">👕 Uniforme / EPI</option>
+            <option value="MULTIPLOS">⚡ Múltiplos Itens</option>
+            <option value="OUTRO">📋 Outro Assunto</option>
           </select>
 
           {/* Filtro Prioridade */}
