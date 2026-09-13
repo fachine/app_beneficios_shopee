@@ -1,0 +1,51 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Ticket {
+  id              String         @id @default(cuid())
+  protocol        String         @unique
+  employeeName    String
+  employeeId      String         // Matrícula
+  workplace       String         // Posto de trabalho
+  benefitType     String         // VR, VT, AMBOS, OUTRO
+  priority        String         @default("MEDIA") // BAIXA, MEDIA, ALTA, CRITICA
+  status          String         @default("NOVO") // NOVO, EM_ANALISE, AGUARDANDO_FORNECEDOR, EM_TRATATIVA, RESOLVIDO, CANCELADO
+  description     String         // Relato original
+  summary         String         // Resumo gerado pela IA
+  missingInfo     String?        // Se a IA detectou algo faltando
+  telegramChatId  String?        // ID do chat para responder ao funcionário
+  telegramMsgId   String?
+  slaHours        Int            @default(24) // Prazo de SLA em horas
+  slaDueAt        DateTime       // Data/hora limite para cumprimento do SLA
+  firstResponseAt DateTime?      // Data/hora da primeira tratativa
+  resolvedAt      DateTime?      // Data/hora de resolução
+  slaStatus       String         @default("DENTRO_PRAZO") // DENTRO_PRAZO, ALERTA, ESTOURADO, CUMPRIDO, DESCUMPRIDO
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  treatments      TreatmentLog[]
+}
+
+model TreatmentLog {
+  id          String   @id @default(cuid())
+  ticketId    String
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author      String   @default("Operador")
+  action      String   // ex: MUDANCA_STATUS, NOTA_INTERNA, RESPOSTA_TELEGRAM
+  notes       String
+  prevStatus  String?
+  newStatus   String?
+  createdAt   DateTime @default(now())
+}
+
+model Setting {
+  id          String   @id @default("system_config")
+  key         String   @unique
+  value       String
+  updatedAt   DateTime @updatedAt
+}

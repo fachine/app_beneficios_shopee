@@ -1,0 +1,24 @@
+{
+  "name": "beneficios-server",
+  "version": "1.0.0",
+  "description": "Backend para gestao de chamados de beneficios via Telegram e OpenRouter",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node src/index.js",
+    "start": "node src/index.js",
+    "prisma:generate": "npx prisma generate",
+    "prisma:push": "npx prisma db push"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "axios": "^1.7.9",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "prisma": "^5.22.0"
+  }
+}
