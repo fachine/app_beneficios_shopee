@@ -24,6 +24,32 @@ let ioInstance = null;
 // }
 const sessions = new Map();
 
+/**
+ * Resolve a empresa usada pelos chamados abertos no Telegram.
+ * O bot atende a operação Shopee; se ela não existir, usa a primeira
+ * empresa ativa para evitar gravar um tenantId padrão sem correspondência.
+ */
+async function resolveTelegramTenantId() {
+  const shopeeTenant = await prisma.tenant.findFirst({
+    where: { slug: 'shopee', active: true },
+    select: { id: true }
+  });
+
+  if (shopeeTenant) return shopeeTenant.id;
+
+  const fallbackTenant = await prisma.tenant.findFirst({
+    where: { active: true },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true }
+  });
+
+  if (!fallbackTenant) {
+    throw new Error('Nenhuma empresa ativa configurada para receber chamados do Telegram.');
+  }
+
+  return fallbackTenant.id;
+}
+
 export function setSocketIO(io) {
   ioInstance = io;
 }
@@ -229,9 +255,6 @@ export async function processIncomingMessage(token, message) {
       const userDesc = text;
       const { name, employeeId, workplace, workplaceCode, workplaceRegion, categories } = session.data;
 
-      // Reseta sessão
-      sessions.delete(chatId);
-
       const loadingMsg = `⏳ *Processando seu chamado...*\nEstamos estruturando suas informações com nossa Inteligência Artificial e abrindo o protocolo no sistema.`;
       await sendTelegramMessage(token, chatId, loadingMsg);
 
@@ -254,10 +277,12 @@ export async function processIncomingMessage(token, message) {
       // Gera protocolo
       const randomSuffix = Math.floor(1000 + Math.random() * 9000);
       const protocol = `BENEF-${new Date().getFullYear()}-${randomSuffix}`;
+      const tenantId = await resolveTelegramTenantId();
 
       // Salva no banco de dados SQLite
       const newTicket = await prisma.ticket.create({
         data: {
+          tenantId,
           protocol,
           employeeName: name,
           employeeId: employeeId,
@@ -288,11 +313,14 @@ export async function processIncomingMessage(token, message) {
         }
       });
 
+      // Encerra a sessão somente depois que o chamado estiver salvo.
+      sessions.delete(chatId);
+
       console.log(`[Ticket Criado via Menu] ${protocol} - ${name} (${workplace})`);
 
       // Notifica o frontend via WebSocket
       if (ioInstance) {
-        ioInstance.emit('ticket:created', newTicket);
+        ioInstance.to(`tenant:${newTicket.tenantId}`).to('role:admin').emit('ticket:created', newTicket);
       }
 
       // Resposta oficial ao colaborador
@@ -494,9 +522,11 @@ async function handleDirectFreeMessage(token, message) {
   const randomSuffix = Math.floor(1000 + Math.random() * 9000);
   const protocol = `BENEF-${new Date().getFullYear()}-${randomSuffix}`;
   const { hours, dueDate } = calculateSlaDueDate(aiData.priority);
+  const tenantId = await resolveTelegramTenantId();
 
   const newTicket = await prisma.ticket.create({
     data: {
+      tenantId,
       protocol,
       employeeName: aiData.employeeName,
       employeeId: aiData.employeeId,
@@ -528,7 +558,7 @@ async function handleDirectFreeMessage(token, message) {
   });
 
   if (ioInstance) {
-    ioInstance.emit('ticket:created', newTicket);
+    ioInstance.to(`tenant:${newTicket.tenantId}`).to('role:admin').emit('ticket:created', newTicket);
   }
 
   const botReply = `🎫 *Protocolo Gerado:* \`${protocol}\`\n\n` +

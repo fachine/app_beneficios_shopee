@@ -11,7 +11,7 @@ import {
   Building2
 } from 'lucide-react';
 
-export default function TicketCard({ ticket, onClick, onDragStart }) {
+export default function TicketCard({ ticket, onClick, onDragStart, canDrag = false }) {
   const isResolved = ticket.status === 'RESOLVIDO';
 
   // Configuração visual de SLA
@@ -80,10 +80,10 @@ export default function TicketCard({ ticket, onClick, onDragStart }) {
 
   return (
     <div
-      draggable
+      draggable={canDrag}
       onDragStart={(e) => onDragStart(e, ticket.id)}
       onClick={() => onClick(ticket)}
-      className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs hover:shadow-md transition-all cursor-grab active:cursor-grabbing hover:border-indigo-300 group relative"
+      className={`bg-white rounded-xl border border-slate-200 p-4 shadow-2xs hover:shadow-md transition-all hover:border-indigo-300 group relative ${canDrag ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}
     >
       {/* Topo do card: Protocolo e Tipo de Benefício */}
       <div className="flex items-center justify-between gap-2 mb-2.5">

@@ -21,7 +21,7 @@ const COLUMNS = [
   { id: 'RESOLVIDO', title: 'Resolvido', icon: CheckCircle, color: 'border-t-emerald-500', headerBg: 'bg-emerald-50/60' }
 ];
 
-export default function KanbanBoard({ tickets, onUpdateTicketStatus, onSelectTicket, onOpenNewTicket }) {
+export default function KanbanBoard({ tickets, onUpdateTicketStatus, onSelectTicket, canManage = false }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterBenefit, setFilterBenefit] = useState('ALL');
   const [filterPriority, setFilterPriority] = useState('ALL');
@@ -47,10 +47,12 @@ export default function KanbanBoard({ tickets, onUpdateTicketStatus, onSelectTic
 
   // Drag and Drop handlers
   const handleDragStart = (e, ticketId) => {
+    if (!canManage) return;
     e.dataTransfer.setData('text/plain', ticketId);
   };
 
   const handleDragOver = (e, columnId) => {
+    if (!canManage) return;
     e.preventDefault();
     setDragOverCol(columnId);
   };
@@ -60,6 +62,7 @@ export default function KanbanBoard({ tickets, onUpdateTicketStatus, onSelectTic
   };
 
   const handleDrop = async (e, columnId) => {
+    if (!canManage) return;
     e.preventDefault();
     setDragOverCol(null);
     const ticketId = e.dataTransfer.getData('text/plain');
@@ -179,7 +182,7 @@ export default function KanbanBoard({ tickets, onUpdateTicketStatus, onSelectTic
                 {colTickets.length === 0 ? (
                   <div className="h-32 flex flex-col items-center justify-center text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-xl p-4">
                     <p className="text-xs font-medium">Nenhum chamado</p>
-                    <p className="text-[11px] text-slate-400">Arraste para cá</p>
+                    <p className="text-[11px] text-slate-400">{canManage ? 'Arraste para cá' : 'Sem registros'}</p>
                   </div>
                 ) : (
                   colTickets.map(ticket => (
@@ -188,6 +191,7 @@ export default function KanbanBoard({ tickets, onUpdateTicketStatus, onSelectTic
                       ticket={ticket}
                       onClick={onSelectTicket}
                       onDragStart={handleDragStart}
+                      canDrag={canManage}
                     />
                   ))
                 )}

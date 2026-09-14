@@ -11,7 +11,9 @@ import {
   SendHorizontal,
   FileText,
   BadgeAlert,
-  ArrowRight
+  ArrowRight,
+  Trash2,
+  ShieldAlert
 } from 'lucide-react';
 
 const STATUS_OPTIONS = [
@@ -23,12 +25,17 @@ const STATUS_OPTIONS = [
   { value: 'CANCELADO', label: 'Cancelado' }
 ];
 
-export default function TicketModal({ ticket, onClose, onUpdateStatus, onAddTreatment }) {
+export default function TicketModal({ ticket, onClose, onUpdateStatus, onAddTreatment, onDeleteTicket, canManage = false, canDelete = false, currentUser }) {
   const [newStatus, setNewStatus] = useState(ticket.status);
   const [treatmentNote, setTreatmentNote] = useState('');
-  const [author, setAuthor] = useState('Operador RH');
+  const author = currentUser?.name || 'Operador';
   const [notifyTelegram, setNotifyTelegram] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Estados para Exclusão pelo Administrador autenticado
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   if (!ticket) return null;
 
@@ -57,6 +64,20 @@ export default function TicketModal({ ticket, onClose, onUpdateStatus, onAddTrea
     setIsSubmitting(false);
   };
 
+  const handleDeleteSubmit = async (e) => {
+    e.preventDefault();
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await onDeleteTicket(ticket.id);
+      onClose();
+    } catch (err) {
+      setDeleteError(err.response?.data?.error || 'Não foi possível excluir o chamado.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
       <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
@@ -73,15 +94,75 @@ export default function TicketModal({ ticket, onClose, onUpdateStatus, onAddTrea
             <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200">
               Prioridade: {ticket.priority}
             </span>
+            {ticket.tenant && (
+              <span className="text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                {ticket.tenant.name}
+              </span>
+            )}
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Botão de Excluir (Admin) */}
+            {canDelete && <button
+              onClick={() => setShowDeleteConfirm(true)}
+              title="Excluir chamado"
+              className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>}
+
+            <button
+              onClick={onClose}
+              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
+
+        {/* Modal Sobreposto para Confirmação de Exclusão com Senha */}
+        {canDelete && showDeleteConfirm && (
+          <div className="p-4 bg-rose-50 border-b border-rose-200 animate-in slide-in-from-top-2">
+            <div className="flex items-start gap-3">
+              <ShieldAlert className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h4 className="text-xs font-bold text-rose-900 uppercase tracking-wider">
+                  Confirmar exclusão de chamado
+                </h4>
+                <p className="text-xs text-rose-700 mt-0.5">
+                  Esta ação é irreversível e removerá todos os registros e tratativas do protocolo <b>{ticket.protocol}</b>.
+                </p>
+
+                {deleteError && (
+                  <p className="text-xs font-bold text-rose-800 mt-2 bg-rose-100 p-2 rounded border border-rose-300">
+                    ❌ {deleteError}
+                  </p>
+                )}
+
+                <form onSubmit={handleDeleteSubmit} className="mt-3 flex flex-wrap items-center gap-2">
+                  <button
+                    type="submit"
+                    disabled={isDeleting}
+                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg shadow-2xs transition-all cursor-pointer"
+                  >
+                    {isDeleting ? 'Excluindo...' : 'Confirmar Exclusão'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDeleteConfirm(false);
+                      setDeleteError(null);
+                    }}
+                    className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Corpo com Scroll */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -98,11 +179,14 @@ export default function TicketModal({ ticket, onClose, onUpdateStatus, onAddTrea
             </div>
 
             <div>
-              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Posto de Trabalho</p>
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Posto de Trabalho / HUB</p>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <MapPin className="w-4 h-4 text-rose-500 shrink-0" />
                 <span className="font-semibold text-sm text-slate-800">{ticket.workplace}</span>
               </div>
+              {ticket.workplaceRegion && (
+                <p className="text-xs text-slate-500 mt-0.5">Região: {ticket.workplaceRegion}</p>
+              )}
             </div>
 
             <div>
@@ -147,7 +231,7 @@ export default function TicketModal({ ticket, onClose, onUpdateStatus, onAddTrea
           </div>
 
           {/* Ação de Mudança de Status */}
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+          {canManage && <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
             <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
               Avançar no Kanban
             </h4>
@@ -172,7 +256,7 @@ export default function TicketModal({ ticket, onClose, onUpdateStatus, onAddTrea
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
-          </div>
+          </div>}
 
           {/* Histórico de Tratativas (Timeline) */}
           <div className="space-y-4">
@@ -206,7 +290,7 @@ export default function TicketModal({ ticket, onClose, onUpdateStatus, onAddTrea
           </div>
 
           {/* Formulário para Adicionar Nova Tratativa */}
-          <form onSubmit={handleAddTreatmentSubmit} className="space-y-3 pt-2">
+          {canManage ? <form onSubmit={handleAddTreatmentSubmit} className="space-y-3 pt-2">
             <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
               Registrar Nova Tratativa / Nota Interna
             </h4>
@@ -243,7 +327,11 @@ export default function TicketModal({ ticket, onClose, onUpdateStatus, onAddTrea
                 <span>Adicionar Tratativa</span>
               </button>
             </div>
-          </form>
+          </form> : (
+            <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-800">
+              Seu perfil possui acesso somente para consulta deste chamado.
+            </div>
+          )}
 
         </div>
 

@@ -1,9 +1,26 @@
 import { prisma } from '../prisma.js';
 import { evaluateSlaStatus } from '../services/slaService.js';
 
+async function resolveTenantId(req) {
+  if (req.user?.role !== 'ADMIN') return req.user.tenantId;
+
+  const headerTenant = req.headers['x-tenant-id'] || req.query.tenantId;
+  if (headerTenant) {
+    const found = await prisma.tenant.findFirst({
+      where: { OR: [{ id: headerTenant }, { slug: headerTenant }] }
+    });
+    if (found) return found.id;
+  }
+  const defaultTenant = await prisma.tenant.findFirst({ where: { slug: 'shopee' } });
+  return defaultTenant ? defaultTenant.id : 'shopee_default';
+}
+
 export async function getDashboardMetrics(req, res) {
   try {
+    const tenantId = await resolveTenantId(req);
+
     const tickets = await prisma.ticket.findMany({
+      where: { tenantId },
       include: {
         treatments: true
       }
@@ -19,7 +36,6 @@ export async function getDashboardMetrics(req, res) {
     let totalResolutionTimeHours = 0;
     let resolvedWithTimeCount = 0;
 
-    // Métricas por tipo de benefício
     const byBenefit = {
       VR: 0,
       VT: 0,
@@ -29,12 +45,9 @@ export async function getDashboardMetrics(req, res) {
       OUTRO: 0
     };
 
-    // Métricas por posto de trabalho
     const byWorkplace = {};
-    // Métricas por região operacional Shopee
     const byRegion = {};
 
-    // Métricas por status
     const byStatus = {
       NOVO: 0,
       EM_ANALISE: 0,
@@ -47,27 +60,22 @@ export async function getDashboardMetrics(req, res) {
     tickets.forEach(ticket => {
       const slaCurrent = evaluateSlaStatus(ticket);
 
-      // Status do ticket
       if (byStatus[ticket.status] !== undefined) {
         byStatus[ticket.status]++;
       }
 
-      // Tipo de benefício
       if (byBenefit[ticket.benefitType] !== undefined) {
         byBenefit[ticket.benefitType]++;
       } else {
         byBenefit.OUTRO++;
       }
 
-      // Posto de trabalho
       const wp = ticket.workplace || 'Não informado';
       byWorkplace[wp] = (byWorkplace[wp] || 0) + 1;
 
-      // Região Operacional Shopee
       const reg = ticket.workplaceRegion || 'Não informada';
       byRegion[reg] = (byRegion[reg] || 0) + 1;
 
-      // SLA
       if (ticket.status === 'RESOLVIDO') {
         resolvedCount++;
         if (slaCurrent === 'CUMPRIDO') {
@@ -102,11 +110,10 @@ export async function getDashboardMetrics(req, res) {
       ? Number((totalResolutionTimeHours / resolvedWithTimeCount).toFixed(1))
       : 0;
 
-    // Transforma byWorkplace em array para gráficos ordenados
     const workplaceChart = Object.keys(byWorkplace)
       .map(name => ({ name, chamados: byWorkplace[name] }))
       .sort((a, b) => b.chamados - a.chamados)
-      .slice(0, 8); // Top 8 postos com mais chamados
+      .slice(0, 8);
 
     const regionChart = Object.keys(byRegion)
       .map(name => ({ name, chamados: byRegion[name] }))
@@ -117,7 +124,6 @@ export async function getDashboardMetrics(req, res) {
       quantidade: byBenefit[type]
     }));
 
-    // Chamados críticos ou em risco
     const criticalTickets = tickets
       .filter(t => t.status !== 'RESOLVIDO' && t.status !== 'CANCELADO')
       .map(t => ({

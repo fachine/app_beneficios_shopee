@@ -7,8 +7,39 @@ generator client {
   provider = "prisma-client-js"
 }
 
+model Tenant {
+  id            String    @id @default(cuid())
+  slug          String    @unique // ex: "shopee", "empresa_b"
+  name          String    // ex: "Shopee SP", "Operação Logística B"
+  adminPassword String    @default("admin123") // Senha de administrador para exclusão e alterações
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  tickets       Ticket[]
+  users         User[]
+}
+
+model User {
+  id                 String   @id @default(cuid())
+  tenantId           String
+  tenant             Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  username           String
+  name               String
+  passwordHash       String
+  role               String
+  active             Boolean  @default(true)
+  mustChangePassword Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([tenantId, username])
+  @@index([tenantId, role])
+}
+
 model Ticket {
   id              String         @id @default(cuid())
+  tenantId        String         @default("shopee_default")
+  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   protocol        String         @unique
   employeeName    String
   employeeId      String         // Matrícula
@@ -38,7 +69,7 @@ model TreatmentLog {
   ticketId    String
   ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   author      String   @default("Operador")
-  action      String   // ex: MUDANCA_STATUS, NOTA_INTERNA, RESPOSTA_TELEGRAM
+  action      String   // ex: MUDANCA_STATUS, NOTA_INTERNA, RESPOSTA_TELEGRAM, EXCLUSAO_TENTATIVA
   notes       String
   prevStatus  String?
   newStatus   String?

@@ -51,6 +51,7 @@ Sistema completo para recepção, triagem com Inteligência Artificial (OpenRout
 ```bash
 cd "d:\Desktop\APP BENEFICIOS\server"
 npm install
+npx prisma db push
 node src/index.js
 ```
 O servidor rodará em `http://localhost:5000`.
@@ -62,6 +63,23 @@ npm install
 npm run dev
 ```
 O painel abrirá em `http://localhost:3000`.
+
+---
+
+## 🔐 Login e Perfis de Acesso
+
+Na primeira inicialização, o sistema cria quatro acessos temporários para a operação `shopee`:
+
+| Perfil | Usuário | Senha inicial | Acesso |
+|---|---|---|---|
+| Admin | `admin` | `Admin@123` | Acesso total, usuários, empresas e configurações |
+| SAC | `sac` | `Sac@123` | Criação e tratamento de chamados |
+| RH | `rh` | `Rh@123` | Chamados, tratativas e dashboard de SLA |
+| Gestor | `gestor` | `Gestor@123` | Consulta de chamados e dashboard |
+
+Todos os perfis precisam trocar a senha no primeiro login. Em ambientes compartilhados ou publicados, faça essa troca imediatamente após a primeira inicialização.
+
+O Admin pode criar, bloquear, alterar perfis e redefinir senhas pelo painel de **Usuários e Permissões**.
 
 ---
 

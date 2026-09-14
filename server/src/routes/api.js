@@ -4,24 +4,79 @@ import {
   getTicketById,
   createTicket,
   updateTicketStatus,
-  addTreatment
+  addTreatment,
+  deleteTicket
 } from '../controllers/ticketController.js';
 import { getDashboardMetrics } from '../controllers/dashboardController.js';
 import { startTelegramPolling, stopTelegramPolling, getBotStatus } from '../services/telegramService.js';
 import { parseEmployeeMessageWithAI } from '../services/aiService.js';
 import { getAllHubs, searchHubs, getRegions } from '../services/hubService.js';
+import { prisma } from '../prisma.js';
+import {
+  changePassword,
+  createUser,
+  listUsers,
+  login,
+  me,
+  updateUser
+} from '../controllers/authController.js';
+import { authenticate, requirePasswordChanged, requirePermission } from '../middleware/auth.js';
 
 const router = express.Router();
 
+// Autenticação
+router.post('/auth/login', login);
+router.use(authenticate);
+router.get('/auth/me', me);
+router.post('/auth/change-password', changePassword);
+router.use(requirePasswordChanged);
+
+// Tenants (Empresas / Operações)
+router.get('/tenants', requirePermission('tenants:read'), async (req, res) => {
+  try {
+    const tenants = await prisma.tenant.findMany({
+      where: req.user.role === 'ADMIN'
+        ? { active: true }
+        : { active: true, id: req.user.tenantId },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, slug: true, createdAt: true }
+    });
+    res.json(tenants);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar empresas' });
+  }
+});
+
+router.post('/tenants', requirePermission('tenants:create'), async (req, res) => {
+  try {
+    const { name, slug, adminPassword } = req.body;
+    if (!name || !slug) {
+      return res.status(400).json({ error: 'Nome e slug são obrigatórios' });
+    }
+
+    const tenant = await prisma.tenant.create({
+      data: {
+        name,
+        slug: slug.toLowerCase().replace(/[^a-z0-9_-]/g, ''),
+        adminPassword: adminPassword || 'admin123'
+      }
+    });
+    res.status(201).json(tenant);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao criar empresa ou slug já existente' });
+  }
+});
+
 // Chamados & Kanban
-router.get('/tickets', getTickets);
-router.get('/tickets/:id', getTicketById);
-router.post('/tickets', createTicket);
-router.patch('/tickets/:id/status', updateTicketStatus);
-router.post('/tickets/:id/treatments', addTreatment);
+router.get('/tickets', requirePermission('tickets:read'), getTickets);
+router.get('/tickets/:id', requirePermission('tickets:read'), getTicketById);
+router.post('/tickets', requirePermission('tickets:create'), createTicket);
+router.patch('/tickets/:id/status', requirePermission('tickets:update'), updateTicketStatus);
+router.post('/tickets/:id/treatments', requirePermission('tickets:treat'), addTreatment);
+router.delete('/tickets/:id', requirePermission('tickets:delete'), deleteTicket); // Exclusão com senha de admin
 
 // Hubs / Postos de Trabalho Shopee SP
-router.get('/hubs', (req, res) => {
+router.get('/hubs', requirePermission('hubs:read'), (req, res) => {
   const { search } = req.query;
   if (search) {
     return res.json(searchHubs(search));
@@ -29,15 +84,15 @@ router.get('/hubs', (req, res) => {
   res.json(getAllHubs());
 });
 
-router.get('/hubs/regions', (req, res) => {
+router.get('/hubs/regions', requirePermission('hubs:read'), (req, res) => {
   res.json(getRegions());
 });
 
 // Dashboard & SLAs
-router.get('/dashboard/metrics', getDashboardMetrics);
+router.get('/dashboard/metrics', requirePermission('dashboard:read'), getDashboardMetrics);
 
 // Teste do Extrator de IA
-router.post('/ai/test-parse', async (req, res) => {
+router.post('/ai/test-parse', requirePermission('ai:test'), async (req, res) => {
   try {
     const { text, apiKey } = req.body;
     if (!text) return res.status(400).json({ error: 'Texto obrigatório' });
@@ -49,7 +104,7 @@ router.post('/ai/test-parse', async (req, res) => {
 });
 
 // Configurações e Status do Telegram / OpenRouter
-router.get('/settings/status', (req, res) => {
+router.get('/settings/status', requirePermission('settings:manage'), (req, res) => {
   const botStatus = getBotStatus();
   res.json({
     telegram: {
@@ -63,7 +118,7 @@ router.get('/settings/status', (req, res) => {
   });
 });
 
-router.post('/settings/telegram/start', async (req, res) => {
+router.post('/settings/telegram/start', requirePermission('settings:manage'), async (req, res) => {
   const { token } = req.body;
   if (token) {
     process.env.TELEGRAM_BOT_TOKEN = token;
@@ -72,16 +127,21 @@ router.post('/settings/telegram/start', async (req, res) => {
   res.json(result);
 });
 
-router.post('/settings/telegram/stop', (req, res) => {
+router.post('/settings/telegram/stop', requirePermission('settings:manage'), (req, res) => {
   stopTelegramPolling();
   res.json({ success: true, message: 'Bot parado' });
 });
 
-router.post('/settings/openrouter', (req, res) => {
+router.post('/settings/openrouter', requirePermission('settings:manage'), (req, res) => {
   const { apiKey, model } = req.body;
   if (apiKey) process.env.OPENROUTER_API_KEY = apiKey;
   if (model) process.env.OPENROUTER_MODEL = model;
   res.json({ success: true, message: 'Configurações de IA salvas com sucesso' });
 });
+
+// Administração de usuários e perfis
+router.get('/users', requirePermission('users:manage'), listUsers);
+router.post('/users', requirePermission('users:manage'), createUser);
+router.patch('/users/:id', requirePermission('users:manage'), updateUser);
 
 export default router;

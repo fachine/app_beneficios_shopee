@@ -5,6 +5,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import apiRoutes from './routes/api.js';
 import { startTelegramPolling, setSocketIO } from './services/telegramService.js';
+import { ensureDefaultUsers, getUserFromToken } from './services/authService.js';
 
 dotenv.config();
 
@@ -31,14 +32,29 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date() });
 });
 
+io.use(async (socket, next) => {
+  try {
+    const token = socket.handshake.auth?.token;
+    const user = await getUserFromToken(token);
+    if (!user || user.mustChangePassword) return next(new Error('Não autorizado'));
+    socket.user = user;
+    next();
+  } catch {
+    next(new Error('Não autorizado'));
+  }
+});
+
 io.on('connection', (socket) => {
-  console.log(`[Socket.io] Cliente conectado: ${socket.id}`);
+  socket.join(`tenant:${socket.user.tenantId}`);
+  if (socket.user.role === 'ADMIN') socket.join('role:admin');
+  console.log(`[Socket.io] ${socket.user.username} conectado: ${socket.id}`);
   socket.on('disconnect', () => {
     console.log(`[Socket.io] Cliente desconectado: ${socket.id}`);
   });
 });
 
 const PORT = process.env.PORT || 5000;
+await ensureDefaultUsers();
 server.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
   console.log(`📡 WebSocket pronto para conexões em tempo real`);
